@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="Vector Database Interactive UI">
+    <title>向量資料庫</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --panel-bg: rgba(22, 27, 34, 0.6);
+            --panel-border: rgba(48, 54, 61, 0.8);
+            --primary: #58a6ff;
+            --primary-hover: #3182ce;
+            --danger: #f85149;
+            --danger-hover: #da3633;
+            --success: #2ea043;
+            --success-hover: #238636;
+            --text-main: #c9d1d9;
+            --text-muted: #8b949e;
+            --font-main: 'Inter', sans-serif;
+            --font-code: 'JetBrains Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(88, 166, 255, 0.08), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(46, 160, 67, 0.05), transparent 25%);
+            color: var(--text-main);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px;
+            padding-bottom: 60px;
+        }
+
+        .container {
+            max-width: 768px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            margin-top: 20px;
+        }
+
+        h1 {
+            font-weight: 600;
+            font-size: 2rem;
+            background: linear-gradient(135deg, #58a6ff, #a371f7);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        /* Input Section */
+        .input-section {
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .input-section:focus-within {
+            box-shadow: 0 8px 32px rgba(88, 166, 255, 0.15);
+            border-color: rgba(88, 166, 255, 0.4);
+        }
+
+        .input-group {
+            display: flex;
+            gap: 12px;
+            flex-direction: column;
+        }
+
+        @media (min-width: 600px) {
+            .input-group {
+                flex-direction: row;
+            }
+        }
+
+        input[type="text"] {
+            flex: 1;
+            background: rgba(13, 17, 23, 0.8);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 14px 16px;
+            color: var(--text-main);
+            font-family: var(--font-code);
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--primary);
+        }
+
+        input[type="text"]::placeholder {
+            color: #484f58;
+            font-family: var(--font-main);
+        }
+
+        button {
+            font-family: var(--font-main);
+            font-weight: 500;
+            padding: 14px 24px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.95rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: #0d1117;
+            font-weight: 600;
+        }
+        
+        .btn-primary:hover { background: var(--primary-hover); }
+
+        .btn-success {
+            background: rgba(46, 160, 67, 0.15);
+            color: var(--success);
+            border: 1px solid rgba(46, 160, 67, 0.4);
+        }
+
+        .btn-success:hover {
+            background: var(--success);
+            color: #fff;
+        }
+
+        .btn-danger {
+            background: rgba(248, 81, 73, 0.1);
+            color: var(--danger);
+            border: 1px solid rgba(248, 81, 73, 0.4);
+        }
+        
+        .btn-danger:hover {
+            background: var(--danger);
+            color: #fff;
+        }
+
+        /* List Section */
+        .list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding: 0 8px;
+        }
+
+        .list-header h2 {
+            font-size: 1.25rem;
+            font-weight: 500;
+            color: #e6edf3;
+        }
+
+        .list-header .badge {
+            background: rgba(139, 148, 158, 0.15);
+            color: var(--text-muted);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+        }
+
+        #previewList {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .card {
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+            animation: slideIn 0.4s ease forwards;
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        @keyframes slideIn {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 4px; height: 100%;
+            background: var(--panel-border);
+        }
+
+        .card.locked::before { background: var(--text-muted); }
+        .card.unlocked::before { background: var(--success); }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .locked .status-badge {
+            background: rgba(139, 148, 158, 0.1);
+            color: var(--text-muted);
+            border: 1px solid rgba(139, 148, 158, 0.2);
+        }
+
+        .unlocked .status-badge {
+            background: rgba(46, 160, 67, 0.1);
+            color: var(--success);
+            border: 1px solid rgba(46, 160, 67, 0.2);
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .card-actions button {
+            padding: 8px 14px;
+            font-size: 0.85rem;
+        }
+
+        .data-grid {
+            margin-top: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .data-row {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        @media (min-width: 600px) {
+            .data-row {
+                flex-direction: row;
+                align-items: flex-start;
+                gap: 16px;
+            }
+            .data-label {
+                width: 70px;
+                flex-shrink: 0;
+                padding-top: 2px;
+            }
+        }
+
+        .data-label {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .data-value {
+            color: var(--text-main);
+            font-size: 0.95rem;
+            word-break: break-word;
+        }
+
+        .vector-preview {
+            background: rgba(13, 17, 23, 0.8);
+            border: 1px solid var(--panel-border);
+            border-radius: 6px;
+            padding: 10px 12px;
+            font-family: var(--font-code);
+            font-size: 0.85rem;
+            color: #a5d6ff;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+            border: 1px dashed var(--panel-border);
+            border-radius: 12px;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 50%;
+            border-top-color: var(--primary);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive tweaks */
+        @media (max-width: 480px) {
+            .card-header {
+                flex-direction: column;
+                gap: 12px;
+            }
+            .card-actions {
+                width: 100%;
+                justify-content: flex-start;
+            }
+            .card-actions button {
+                flex: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>神經節點對接埠</h1>
+            <p class="subtitle">將您的特徵向量寫入資料庫核心</p>
+        </header>
+
+        <section class="input-section">
+            <div class="input-group">
+                <input type="text" id="vectorInput" placeholder="輸入 JSON 陣列或逗號分隔數值 (例: [0.1, 0.2] 或 0.1, 0.2)" autocomplete="off">
+                <button class="btn-primary" id="saveBtn" onclick="saveData()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                    寫入記錄
+                </button>
+            </div>
+        </section>
+
+        <div class="list-header">
+            <h2>實體快取列表</h2>
+            <span class="badge" id="countBadge">載入中...</span>
+        </div>
+        <div id="previewList">
+            <div style="text-align:center; padding: 40px;"><div class="loading"></div></div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('vectorInput').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') saveData();
+        });
+
+        // 初始載入資料
+        fetchData();
+
+        async function fetchData() {
+            try {
+                const res = await fetch('/api/data');
+                const data = await res.json();
+                renderList(data);
+            } catch (err) {
+                console.error("Fetch error:", err);
+                document.getElementById('previewList').innerHTML = `<div class="empty-state">無法連接到核心伺服器</div>`;
+                document.getElementById('countBadge').textContent = '異常';
+            }
+        }
+
+        async function saveData() {
+            const inputEl = document.getElementById('vectorInput');
+            const btn = document.getElementById('saveBtn');
+            const input = inputEl.value.trim();
+            if (!input) return;
+
+            let vectorArray = [];
+            try {
+                if (input.startsWith('[')) {
+                    vectorArray = JSON.parse(input);
+                } else {
+                    vectorArray = input.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
+                }
+            } catch (e) {
+                return alert('無效的輸入格式。請使用 JSON 陣列或以逗號分隔的數字。');
+            }
+
+            if(!Array.isArray(vectorArray) || vectorArray.length === 0) {
+                return alert('解析失敗，請輸入有效的數字陣列。');
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<div class="loading" style="width:16px;height:16px;border-width:2px;"></div>';
+
+            try {
+                await fetch('/api/data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ vector: vectorArray })
+                });
+                inputEl.value = '';
+                await fetchData();
+            } catch (err) {
+                alert('寫入失敗');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> 寫入記錄';
+            }
+        }
+
+        async function deleteData(id, btnElement) {
+            btnElement.disabled = true;
+            btnElement.textContent = '...';
+            await fetch(`/api/data/${id}`, { method: 'DELETE' });
+            fetchData();
+        }
+
+        async function unlockData(id, btnElement) {
+            btnElement.disabled = true;
+            btnElement.textContent = '...';
+            await fetch(`/api/data/${id}/unlock`, { method: 'PUT' });
+            fetchData();
+        }
+
+
+        function renderList(database) {
+            const list = document.getElementById('previewList');
+            document.getElementById('countBadge').textContent = `共 ${database.length} 筆`;
+            list.innerHTML = '';
+            
+            if(database.length === 0) { 
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:12px;opacity:0.5;"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>
+                        <p>資料庫目前為空</p>
+                    </div>`; 
+                return; 
+            }
+
+            database.forEach((item, index) => {
+                const card = document.createElement('div');
+                const isUnlocked = item.is_unlocked;
+                card.className = `card ${isUnlocked ? 'unlocked' : 'locked'}`;
+                card.style.animationDelay = `${index * 0.05}s`;
+
+                let contentHtml = '';
+                if (isUnlocked) {
+                    const vectorPreview = item.vector.slice(0, 8).map(v => v.toFixed(4)).join(', ');
+                    const dateStr = item.created_at ? new Date(item.created_at).toLocaleString() : '-';
+                    
+                    contentHtml = `
+                        <div class="data-grid">
+                            <div class="data-row">
+                                <div class="data-label">ID</div>
+                                <div class="data-value" style="font-family: var(--font-code); font-size: 0.85rem; color: var(--text-muted);">${item.id}</div>
+                            </div>
+                            <div class="data-row">
+                                <div class="data-label">名稱</div>
+                                <div class="data-value">${item.name || '-'}</div>
+                            </div>
+                            <div class="data-row">
+                                <div class="data-label">描述</div>
+                                <div class="data-value">${item.description || '-'}</div>
+                            </div>
+                            <div class="data-row">
+                                <div class="data-label">建立時間</div>
+                                <div class="data-value">${dateStr}</div>
+                            </div>
+                            <div class="data-row" style="flex-direction: column; gap: 8px;">
+                                <div class="data-label">特徵向量</div>
+                                <div class="vector-preview">[${vectorPreview}, ...] <span style="color: var(--text-muted);">(共 ${item.vector.length} 維度)</span></div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    contentHtml = `
+                        <div class="data-grid">
+                            <div class="data-row">
+                                <div class="data-label">ID</div>
+                                <div class="data-value" style="font-family: var(--font-code); font-size: 0.85rem; color: var(--text-muted);">${item.id}</div>
+                            </div>
+                            <div class="data-row">
+                                <div class="data-label">維度</div>
+                                <div class="data-value">${item.vector.length}</div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                card.innerHTML = `
+                    <div class="card-header">
+                        <div class="status-badge">
+                            ${isUnlocked ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11V7a9 9 0 0 1 18 0v4"></path><path d="M7 11v4c0 1.1.9 2 2 2h6a2 2 0 0 0 2-2v-4"></path></svg> 授權通過' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> 已加密'}
+                        </div>
+                        <div class="card-actions">
+                            ${!isUnlocked ? `<button class="btn-success" onclick="unlockData('${item.id}', this)">解鎖實體</button>` : ''}
+                            <button class="btn-danger" onclick="deleteData('${item.id}', this)">清除</button>
+                        </div>
+                    </div>
+                    
+                    ${contentHtml}
+                `;
+                
+                list.appendChild(card);
+            });
+        }
+    </script>
+</body>
+</html>
