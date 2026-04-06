@@ -1,1 +1,2 @@
-/target
+py/__pycache__/
+py/gvw.db
