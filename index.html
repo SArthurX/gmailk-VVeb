@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="description" content="gmailk-V BioHash Template Manager">
-    <title>gmailk-V 模板管理</title>
+    <meta name="description" content="gmailk-V BioHash 碼字註冊與人員管理">
+    <title>gmailk-V 碼字管理</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -19,6 +19,8 @@
             --danger-hover: #da3633;
             --success: #3fb950;
             --success-dim: rgba(63, 185, 80, 0.1);
+            --warning: #d29922;
+            --warning-dim: rgba(210, 153, 34, 0.12);
             --accent: #a78bfa;
             --accent-dim: rgba(167, 139, 250, 0.12);
             --text-main: #d1d9e6;
@@ -47,10 +49,7 @@
         .container { max-width: 720px; margin: 0 auto; }
 
         /* ── Header ── */
-        header {
-            text-align: center;
-            padding: 28px 0 36px;
-        }
+        header { text-align: center; padding: 28px 0 24px; }
 
         .logo {
             display: inline-flex;
@@ -87,7 +86,7 @@
         .status-bar {
             display: flex;
             gap: 12px;
-            margin-bottom: 24px;
+            margin-bottom: 20px;
             flex-wrap: wrap;
         }
 
@@ -118,24 +117,74 @@
             50% { opacity: 0.4; }
         }
 
-        /* ── Input Section ── */
-        .input-section {
+        /* ── Tab Navigation ── */
+        .tab-nav {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 24px;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            padding: 4px;
+            backdrop-filter: blur(16px);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 9px;
+            background: transparent;
+            color: var(--text-muted);
+            font-family: var(--font-main);
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .tab-btn:hover { color: var(--text-main); }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, rgba(110,168,254,0.15), rgba(167,139,250,0.1));
+            color: var(--text-bright);
+            box-shadow: 0 2px 12px rgba(110,168,254,0.1);
+        }
+
+        .tab-btn .tab-badge {
+            background: var(--warning-dim);
+            color: var(--warning);
+            padding: 1px 8px;
+            border-radius: 10px;
+            font-size: 0.72rem;
+            font-weight: 600;
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* ── Section Panel ── */
+        .panel {
             background: var(--panel-bg);
             backdrop-filter: blur(16px);
             border: 1px solid var(--panel-border);
             border-radius: var(--radius);
             padding: 24px;
-            margin-bottom: 28px;
+            margin-bottom: 24px;
             box-shadow: 0 8px 32px rgba(0,0,0,0.3);
             transition: border-color 0.3s, box-shadow 0.3s;
         }
 
-        .input-section:focus-within {
+        .panel:focus-within {
             border-color: rgba(110,168,254,0.35);
             box-shadow: 0 8px 40px rgba(110,168,254,0.08);
         }
 
-        .input-section h3 {
+        .panel h3 {
             font-size: 0.85rem;
             font-weight: 600;
             color: var(--text-muted);
@@ -144,10 +193,11 @@
             margin-bottom: 16px;
         }
 
+        /* ── Forms ── */
         .form-grid {
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 14px;
         }
 
         .form-row {
@@ -167,7 +217,7 @@
             margin-bottom: 4px;
         }
 
-        input[type="text"], textarea {
+        input[type="text"], input[type="date"], textarea {
             width: 100%;
             background: rgba(6, 10, 18, 0.8);
             border: 1px solid var(--panel-border);
@@ -181,19 +231,94 @@
             resize: none;
         }
 
-        input[type="text"]:focus, textarea:focus {
+        input[type="date"] {
+            color-scheme: dark;
+        }
+
+        input:focus, textarea:focus {
             border-color: var(--primary);
         }
 
-        input[type="text"]::placeholder, textarea::placeholder {
+        input::placeholder, textarea::placeholder {
             color: #3a4458;
             font-family: var(--font-main);
         }
 
-        .template-input {
-            font-family: var(--font-code) !important;
-            font-size: 0.82rem !important;
-            min-height: 72px;
+        /* ── Photo Upload ── */
+        .photo-drop {
+            border: 2px dashed var(--panel-border);
+            border-radius: 12px;
+            padding: 32px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .photo-drop:hover, .photo-drop.dragover {
+            border-color: var(--primary);
+            background: var(--primary-dim);
+        }
+
+        .photo-drop.has-photo {
+            padding: 12px;
+            border-style: solid;
+            border-color: var(--success);
+        }
+
+        .photo-drop input[type="file"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .photo-drop .drop-icon {
+            font-size: 2.5rem;
+            margin-bottom: 8px;
+            opacity: 0.5;
+        }
+
+        .photo-drop .drop-text {
+            color: var(--text-muted);
+            font-size: 0.88rem;
+        }
+
+        .photo-drop .drop-hint {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            margin-top: 4px;
+            opacity: 0.7;
+        }
+
+        .photo-preview {
+            max-width: 200px;
+            max-height: 200px;
+            border-radius: 8px;
+            object-fit: cover;
+        }
+
+        .photo-name {
+            margin-top: 8px;
+            font-size: 0.8rem;
+            color: var(--success);
+            font-weight: 500;
+        }
+
+        /* ── Date Range ── */
+        .date-range {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        .date-range > div { flex: 1; }
+
+        .date-range .separator {
+            padding-bottom: 14px;
+            color: var(--text-muted);
+            font-weight: 500;
         }
 
         /* ── Buttons ── */
@@ -230,25 +355,30 @@
             color: var(--danger);
             border: 1px solid rgba(248,81,73,0.3);
         }
-        .btn-danger:hover:not(:disabled) {
-            background: var(--danger);
-            color: #fff;
-        }
+        .btn-danger:hover:not(:disabled) { background: var(--danger); color: #fff; }
 
         .btn-edit {
             background: var(--accent-dim);
             color: var(--accent);
             border: 1px solid rgba(167,139,250,0.3);
         }
-        .btn-edit:hover:not(:disabled) {
-            background: var(--accent);
-            color: #fff;
-        }
+        .btn-edit:hover:not(:disabled) { background: var(--accent); color: #fff; }
 
-        .btn-sm {
-            padding: 7px 13px;
-            font-size: 0.82rem;
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--panel-border);
         }
+        .btn-ghost:hover { color: var(--text-main); border-color: var(--text-muted); }
+
+        .btn-sm { padding: 7px 13px; font-size: 0.82rem; }
+
+        .btn-copy {
+            background: var(--success-dim);
+            color: var(--success);
+            border: 1px solid rgba(63,185,80,0.3);
+        }
+        .btn-copy:hover:not(:disabled) { background: var(--success); color: #fff; }
 
         /* ── List ── */
         .list-header {
@@ -266,13 +396,15 @@
         }
 
         .badge {
-            background: var(--primary-dim);
-            color: var(--primary);
             padding: 4px 12px;
             border-radius: 20px;
             font-size: 0.78rem;
             font-weight: 500;
         }
+
+        .badge-primary { background: var(--primary-dim); color: var(--primary); }
+        .badge-warning { background: var(--warning-dim); color: var(--warning); }
+        .badge-success { background: var(--success-dim); color: var(--success); }
 
         #personList {
             display: flex;
@@ -301,7 +433,16 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        .card::before {
+        .card.pending::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0;
+            width: 3px; height: 100%;
+            background: linear-gradient(180deg, var(--warning), #e8a317);
+            border-radius: 3px 0 0 3px;
+        }
+
+        .card.completed::before {
             content: '';
             position: absolute;
             left: 0; top: 0;
@@ -317,9 +458,7 @@
             margin-bottom: 14px;
         }
 
-        .card-identity {
-            min-width: 0;
-        }
+        .card-identity { min-width: 0; flex: 1; }
 
         .person-name {
             font-size: 1.05rem;
@@ -327,6 +466,9 @@
             color: var(--text-bright);
             margin-bottom: 2px;
             word-break: break-word;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .person-id {
@@ -335,11 +477,48 @@
             font-family: var(--font-code);
         }
 
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.72rem;
+            font-weight: 600;
+        }
+
+        .status-pending {
+            background: var(--warning-dim);
+            color: var(--warning);
+        }
+
+        .status-completed {
+            background: var(--success-dim);
+            color: var(--success);
+        }
+
         .card-actions {
             display: flex;
             gap: 6px;
             flex-shrink: 0;
             margin-left: 12px;
+        }
+
+        .card-photo {
+            width: 56px;
+            height: 56px;
+            border-radius: 10px;
+            object-fit: cover;
+            border: 2px solid var(--panel-border);
+            flex-shrink: 0;
+            margin-right: 14px;
+        }
+
+        .card-top-left {
+            display: flex;
+            align-items: flex-start;
+            min-width: 0;
+            flex: 1;
         }
 
         .meta-grid {
@@ -379,9 +558,35 @@
             overflow-x: auto;
             white-space: nowrap;
             line-height: 1.5;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
         }
 
+        .template-preview .hex-text { overflow: hidden; text-overflow: ellipsis; }
         .template-preview .dim { color: var(--text-muted); }
+
+        /* ── Result Panel ── */
+        .result-panel {
+            display: none;
+            margin-top: 16px;
+            padding: 20px;
+            background: rgba(63,185,80,0.06);
+            border: 1px solid rgba(63,185,80,0.2);
+            border-radius: 12px;
+        }
+
+        .result-panel.active { display: block; }
+
+        .result-panel h4 {
+            color: var(--success);
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
 
         /* ── Empty State ── */
         .empty-state {
@@ -488,17 +693,47 @@
             margin-top: 18px;
         }
 
-        .btn-ghost {
-            background: transparent;
+        /* ── Flow Diagram ── */
+        .flow-hint {
+            margin-top: 16px;
+            padding: 14px 18px;
+            background: rgba(110,168,254,0.06);
+            border: 1px solid rgba(110,168,254,0.15);
+            border-radius: 10px;
+            font-size: 0.8rem;
             color: var(--text-muted);
-            border: 1px solid var(--panel-border);
+            line-height: 1.7;
         }
-        .btn-ghost:hover { color: var(--text-main); border-color: var(--text-muted); }
+
+        .flow-hint strong { color: var(--primary); }
+
+        .flow-step {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 3px 0;
+        }
+
+        .flow-step .step-num {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--primary-dim);
+            color: var(--primary);
+            font-size: 0.7rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
 
         @media (max-width: 480px) {
             .card-top { flex-direction: column; gap: 10px; }
             .card-actions { margin-left: 0; width: 100%; }
             .card-actions button { flex: 1; }
+            .card-top-left { flex-direction: column; }
+            .card-photo { margin-right: 0; margin-bottom: 10px; }
         }
     </style>
 </head>
@@ -534,7 +769,7 @@
             <div class="logo-icon">🔐</div>
             <h1>gmailk-V</h1>
         </div>
-        <p class="subtitle">BioHash 模板管理中心</p>
+        <p class="subtitle">BioHash 碼字註冊 · 驗證管理</p>
     </header>
 
     <!-- Status Bar -->
@@ -546,70 +781,271 @@
         <div class="status-chip" id="uptimeChip" style="display:none;">
             ⏱️ <span id="uptimeText"></span>
         </div>
-    </div>
-
-    <!-- Create Form -->
-    <section class="input-section">
-        <h3>新增模板</h3>
-        <div class="form-grid">
-            <div class="form-row">
-                <div style="flex:1;">
-                    <label for="nameInput">名稱</label>
-                    <input type="text" id="nameInput" placeholder="人員名稱" autocomplete="off">
-                </div>
-                <div style="flex:1;">
-                    <label for="descInput">描述 (選填)</label>
-                    <input type="text" id="descInput" placeholder="備註" autocomplete="off">
-                </div>
-            </div>
-            <div>
-                <label for="templateInput">碼字 (BioHash Template Hex)</label>
-                <textarea id="templateInput" class="template-input" placeholder="貼上 hex 編碼的 BioHash 模板，例如: 0a191b2c3d4e5f60..."></textarea>
-            </div>
-            <div>
-                <label for="payloadInput">加密酬載 (選填，Encrypted Payload)</label>
-                <textarea id="payloadInput" class="template-input" style="min-height:48px;color:#c4b5fd;" placeholder="AES 加密後的資料 (base64 或 hex)，驗證成功後方可解密"></textarea>
-            </div>
-            <button class="btn-primary" id="createBtn" onclick="createPerson()">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                寫入資料庫
-            </button>
+        <div class="status-chip" id="pendingChip" style="display:none;">
+            ⏳ <span id="pendingText"></span>
         </div>
-    </section>
-
-    <!-- Person List -->
-    <div class="list-header">
-        <h2>已註冊人員</h2>
-        <span class="badge" id="countBadge">載入中</span>
     </div>
-    <div id="personList">
-        <div style="text-align:center; padding: 48px;">
-            <div class="loading"></div>
+
+    <!-- Tab Navigation -->
+    <div class="tab-nav">
+        <button class="tab-btn active" data-tab="enroll" onclick="switchTab('enroll')">
+            📸 註冊碼字
+        </button>
+        <button class="tab-btn" data-tab="manage" onclick="switchTab('manage')">
+            👥 人員管理
+            <span class="tab-badge" id="manageBadge" style="display:none;"></span>
+        </button>
+    </div>
+
+    <!-- ═══ Tab 1: Enroll ═══ -->
+    <div class="tab-content active" id="tab-enroll">
+        <section class="panel">
+            <h3>📸 註冊新碼字</h3>
+            <div class="form-grid">
+                <!-- Photo Upload -->
+                <div>
+                    <label>人臉照片</label>
+                    <div class="photo-drop" id="photoDrop">
+                        <input type="file" id="photoInput" accept="image/*">
+                        <div id="photoPlaceholder">
+                            <div class="drop-icon">📷</div>
+                            <div class="drop-text">點擊或拖拽上傳照片</div>
+                            <div class="drop-hint">支援 JPG、PNG、WebP (上限 10MB)</div>
+                        </div>
+                        <div id="photoPreviewArea" style="display:none;">
+                            <img id="photoPreviewImg" class="photo-preview" alt="preview">
+                            <div class="photo-name" id="photoFileName"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Name & Description -->
+                <div class="form-row">
+                    <div style="flex:1;">
+                        <label for="enrollName">名稱 *</label>
+                        <input type="text" id="enrollName" placeholder="你的名字" autocomplete="off">
+                    </div>
+                    <div style="flex:1;">
+                        <label for="enrollDesc">描述 / 附帶資訊</label>
+                        <input type="text" id="enrollDesc" placeholder="例如: 公司、職稱、備註" autocomplete="off">
+                    </div>
+                </div>
+
+                <!-- Date Seed Range -->
+                <div>
+                    <label>碼字有效期間 (日期種子範圍)</label>
+                    <div class="date-range">
+                        <div>
+                            <label for="seedStart" style="font-size:0.72rem;">起始日</label>
+                            <input type="date" id="seedStart">
+                        </div>
+                        <div class="separator">～</div>
+                        <div>
+                            <label for="seedEnd" style="font-size:0.72rem;">結束日</label>
+                            <input type="date" id="seedEnd">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit -->
+                <button class="btn-primary" id="enrollBtn" onclick="submitEnroll()" style="margin-top:4px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    開始註冊
+                </button>
+            </div>
+
+            <!-- Result -->
+            <div class="result-panel" id="enrollResult">
+                <h4>✅ 註冊請求已建立</h4>
+                <p style="font-size:0.85rem;color:var(--text-main);margin-bottom:8px;">
+                    照片已上傳，等待裝置處理。裝置連線後將自動產生碼字。
+                </p>
+                <div class="meta-grid">
+                    <div class="meta-item">
+                        <span class="meta-label">ID</span>
+                        <span class="meta-value" id="resultId">—</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">狀態</span>
+                        <span class="meta-value"><span class="status-badge status-pending">⏳ 待處理</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Flow Hint -->
+            <div class="flow-hint">
+                <strong>完整流程：</strong>
+                <div class="flow-step"><span class="step-num">1</span> 上傳照片 + 填寫資訊 + 選擇有效期間</div>
+                <div class="flow-step"><span class="step-num">2</span> RPi 儲存照片，等待 CV181X 裝置連線</div>
+                <div class="flow-step"><span class="step-num">3</span> 裝置執行 ArcFace + BioHash + Fuzzy Commitment → 產生碼字</div>
+                <div class="flow-step"><span class="step-num">4</span> 碼字回傳 RPi，你可以複製分享給他人</div>
+                <div class="flow-step"><span class="step-num">5</span> 他人的攝影機看到你 → 驗證碼字 → 解密出你的資訊</div>
+            </div>
+        </section>
+    </div>
+
+    <!-- ═══ Tab 2: Management ═══ -->
+    <div class="tab-content" id="tab-manage">
+        <div class="list-header">
+            <h2>已註冊人員</h2>
+            <span class="badge badge-primary" id="countBadge">載入中</span>
+        </div>
+        <div id="personList">
+            <div style="text-align:center; padding: 48px;">
+                <div class="loading"></div>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
+    // ── State ──
+    let currentTab = 'enroll';
+    let selectedPhoto = null;
+
     // ── Init ──
     fetchStatus();
     fetchPersons();
     setInterval(fetchStatus, 15000);
+    setDefaultDates();
+    setupPhotoDrop();
 
-    document.getElementById('nameInput').addEventListener('keydown', e => {
-        if (e.key === 'Enter') document.getElementById('templateInput').focus();
-    });
-    document.getElementById('templateInput').addEventListener('keydown', e => {
-        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); createPerson(); }
-    });
+    // ── Tab Navigation ──
+    function switchTab(tab) {
+        currentTab = tab;
+        document.querySelectorAll('.tab-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.tab === tab);
+        });
+        document.querySelectorAll('.tab-content').forEach(c => {
+            c.classList.toggle('active', c.id === `tab-${tab}`);
+        });
+        if (tab === 'manage') fetchPersons();
+    }
 
-    // ── API Functions ──
+    // ── Date Defaults ──
+    function setDefaultDates() {
+        const today = new Date();
+        const fmt = d => d.toISOString().split('T')[0];
+        document.getElementById('seedStart').value = fmt(today);
+        const end = new Date(today);
+        end.setMonth(end.getMonth() + 1);
+        document.getElementById('seedEnd').value = fmt(end);
+    }
+
+    // ── Photo Drop Zone ──
+    function setupPhotoDrop() {
+        const drop = document.getElementById('photoDrop');
+        const input = document.getElementById('photoInput');
+
+        ['dragenter', 'dragover'].forEach(evt => {
+            drop.addEventListener(evt, e => { e.preventDefault(); drop.classList.add('dragover'); });
+        });
+        ['dragleave', 'drop'].forEach(evt => {
+            drop.addEventListener(evt, e => { e.preventDefault(); drop.classList.remove('dragover'); });
+        });
+
+        drop.addEventListener('drop', e => {
+            const files = e.dataTransfer.files;
+            if (files.length > 0) handlePhotoSelect(files[0]);
+        });
+
+        input.addEventListener('change', e => {
+            if (e.target.files.length > 0) handlePhotoSelect(e.target.files[0]);
+        });
+    }
+
+    function handlePhotoSelect(file) {
+        if (!file.type.startsWith('image/')) {
+            toast('請選擇圖片檔案', 'error');
+            return;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+            toast('檔案過大 (上限 10MB)', 'error');
+            return;
+        }
+
+        selectedPhoto = file;
+        const drop = document.getElementById('photoDrop');
+        drop.classList.add('has-photo');
+        document.getElementById('photoPlaceholder').style.display = 'none';
+        document.getElementById('photoPreviewArea').style.display = 'block';
+        document.getElementById('photoFileName').textContent = `✅ ${file.name} (${(file.size/1024).toFixed(0)} KB)`;
+
+        const reader = new FileReader();
+        reader.onload = e => {
+            document.getElementById('photoPreviewImg').src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // ── API: Enroll ──
+    async function submitEnroll() {
+        const name = document.getElementById('enrollName').value.trim();
+        const desc = document.getElementById('enrollDesc').value.trim();
+        const seedStart = document.getElementById('seedStart').value;
+        const seedEnd = document.getElementById('seedEnd').value;
+        const btn = document.getElementById('enrollBtn');
+
+        if (!name) return toast('請輸入名稱', 'error');
+        if (!selectedPhoto) return toast('請上傳照片', 'error');
+        if (!seedStart || !seedEnd) return toast('請選擇日期範圍', 'error');
+        if (seedStart > seedEnd) return toast('起始日期不能晚於結束日期', 'error');
+
+        btn.disabled = true;
+        btn.innerHTML = '<div class="loading" style="width:14px;height:14px;border-width:2px;"></div> 上傳中...';
+
+        try {
+            const formData = new FormData();
+            formData.append('name', name);
+            formData.append('description', desc);
+            formData.append('seed_start', seedStart);
+            formData.append('seed_end', seedEnd);
+            formData.append('photo', selectedPhoto);
+
+            const res = await fetch('/api/enroll', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.detail || `HTTP ${res.status}`);
+            }
+
+            const data = await res.json();
+
+            // Show result
+            document.getElementById('resultId').textContent = data.id;
+            document.getElementById('enrollResult').classList.add('active');
+
+            // Reset form
+            document.getElementById('enrollName').value = '';
+            document.getElementById('enrollDesc').value = '';
+            selectedPhoto = null;
+            document.getElementById('photoDrop').classList.remove('has-photo');
+            document.getElementById('photoPlaceholder').style.display = '';
+            document.getElementById('photoPreviewArea').style.display = 'none';
+            document.getElementById('photoInput').value = '';
+            setDefaultDates();
+
+            toast(`註冊請求已建立: ${name}`, 'success');
+            fetchStatus();
+        } catch (err) {
+            toast(`註冊失敗: ${err.message}`, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> 開始註冊';
+        }
+    }
+
+    // ── API: Fetch ──
     async function fetchStatus() {
         try {
             const res = await fetch('/api/status');
             const s = await res.json();
             const dot = document.getElementById('statusDot');
             const text = document.getElementById('statusText');
-            
+
             if (s.db_connected) {
                 dot.className = 'status-dot online';
                 text.textContent = `已連線 · ${s.person_count} 人`;
@@ -618,9 +1054,16 @@
                 text.textContent = '資料庫離線';
             }
 
-            const uptimeChip = document.getElementById('uptimeChip');
-            uptimeChip.style.display = 'inline-flex';
+            document.getElementById('uptimeChip').style.display = 'inline-flex';
             document.getElementById('uptimeText').textContent = formatUptime(s.uptime_seconds);
+
+            const pendingChip = document.getElementById('pendingChip');
+            if (s.pending_count > 0) {
+                pendingChip.style.display = 'inline-flex';
+                document.getElementById('pendingText').textContent = `${s.pending_count} 待處理`;
+            } else {
+                pendingChip.style.display = 'none';
+            }
         } catch {
             document.getElementById('statusDot').className = 'status-dot offline';
             document.getElementById('statusText').textContent = '無法連線';
@@ -632,58 +1075,18 @@
             const res = await fetch('/api/persons');
             const data = await res.json();
             renderList(data);
+
+            const badge = document.getElementById('manageBadge');
+            const pending = data.filter(p => p.status === 'pending').length;
+            if (pending > 0) {
+                badge.style.display = 'inline';
+                badge.textContent = `${pending} 待處理`;
+            } else {
+                badge.style.display = 'none';
+            }
         } catch (err) {
             document.getElementById('personList').innerHTML = `<div class="empty-state"><p>無法連接伺服器</p></div>`;
             document.getElementById('countBadge').textContent = '離線';
-        }
-    }
-
-    async function createPerson() {
-        const name = document.getElementById('nameInput').value.trim();
-        const template = document.getElementById('templateInput').value.trim();
-        const desc = document.getElementById('descInput').value.trim();
-        const payload = document.getElementById('payloadInput').value.trim();
-        const btn = document.getElementById('createBtn');
-
-        if (!name) return toast('請輸入名稱', 'error');
-        if (!template) return toast('請輸入碼字', 'error');
-        if (!/^[0-9a-fA-F]+$/.test(template) || template.length % 2 !== 0) {
-            return toast('碼字必須為有效的 hex 字串（偶數長度）', 'error');
-        }
-
-        btn.disabled = true;
-        btn.innerHTML = '<div class="loading" style="width:14px;height:14px;border-width:2px;"></div>';
-
-        try {
-            const res = await fetch('/api/persons', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name,
-                    biohash_template: template,
-                    description: desc || undefined,
-                    encrypted_payload: payload || undefined
-                })
-            });
-
-            if (!res.ok) {
-                const err = await res.json().catch(() => ({}));
-                const msg = err.detail?.[0]?.msg || err.detail || err.error || `HTTP ${res.status}`;
-                throw new Error(msg);
-            }
-
-            document.getElementById('nameInput').value = '';
-            document.getElementById('templateInput').value = '';
-            document.getElementById('descInput').value = '';
-            document.getElementById('payloadInput').value = '';
-            toast(`已新增: ${name}`, 'success');
-            fetchPersons();
-            fetchStatus();
-        } catch (err) {
-            toast(`新增失敗: ${err.message}`, 'error');
-        } finally {
-            btn.disabled = false;
-            btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> 寫入資料庫';
         }
     }
 
@@ -736,6 +1139,14 @@
         }
     }
 
+    function copyTemplate(hex) {
+        navigator.clipboard.writeText(hex).then(() => {
+            toast('碼字已複製到剪貼簿', 'success');
+        }).catch(() => {
+            toast('複製失敗', 'error');
+        });
+    }
+
     // ── Render ──
     function renderList(persons) {
         const list = document.getElementById('personList');
@@ -755,20 +1166,51 @@
 
         persons.forEach((p, i) => {
             const card = document.createElement('div');
-            card.className = 'card';
+            card.className = `card ${p.status}`;
             card.style.animationDelay = `${i * 0.04}s`;
 
-            const date = p.created_at ? new Date(p.created_at).toLocaleString('zh-TW') : '-';
-            const hexPreview = p.biohash_template.length > 48
-                ? p.biohash_template.substring(0, 48)
-                : p.biohash_template;
-            const remaining = p.biohash_template.length - hexPreview.length;
+            const date = p.created_at ? new Date(p.created_at + 'Z').toLocaleString('zh-TW') : '—';
+            const isPending = p.status === 'pending';
+            const statusHtml = isPending
+                ? '<span class="status-badge status-pending">⏳ 待處理</span>'
+                : '<span class="status-badge status-completed">✅ 已完成</span>';
+
+            const photoHtml = p.photo_path
+                ? `<img src="/uploads/${esc(p.photo_path)}" class="card-photo" alt="photo" onerror="this.style.display='none'">`
+                : '';
+
+            let templateHtml = '';
+            if (!isPending && p.biohash_template) {
+                const hex = p.biohash_template;
+                const preview = hex.length > 48 ? hex.substring(0, 48) : hex;
+                const remaining = hex.length - preview.length;
+                templateHtml = `
+                    <div class="template-preview">
+                        <span class="hex-text">${preview}${remaining > 0 ? `<span class="dim">…+${remaining} chars</span>` : ''}</span>
+                        <button class="btn-copy btn-sm" onclick="copyTemplate('${hex}')" style="white-space:nowrap;">📋 複製</button>
+                    </div>`;
+            } else if (isPending) {
+                templateHtml = `
+                    <div class="template-preview" style="color:var(--warning);justify-content:center;">
+                        ⏳ 等待 CV181X 裝置處理...
+                    </div>`;
+            }
+
+            const seedHtml = (p.seed_start && p.seed_end)
+                ? `<div class="meta-item">
+                        <span class="meta-label">有效期間</span>
+                        <span class="meta-value">${p.seed_start} ~ ${p.seed_end}</span>
+                   </div>`
+                : '';
 
             card.innerHTML = `
                 <div class="card-top">
-                    <div class="card-identity">
-                        <div class="person-name">${esc(p.name)}</div>
-                        <div class="person-id">ID: ${p.id}${p.description ? ' · ' + esc(p.description) : ''}</div>
+                    <div class="card-top-left">
+                        ${photoHtml}
+                        <div class="card-identity">
+                            <div class="person-name">${esc(p.name)} ${statusHtml}</div>
+                            <div class="person-id">ID: ${p.id}${p.description ? ' · ' + esc(p.description) : ''}</div>
+                        </div>
                     </div>
                     <div class="card-actions">
                         <button class="btn-edit btn-sm" onclick="openEditModal(${p.id}, '${esc(p.name)}', '${esc(p.description || '')}')">編輯</button>
@@ -776,25 +1218,21 @@
                     </div>
                 </div>
                 <div class="meta-grid">
-                    <div class="meta-item">
+                    ${!isPending && p.biohash_template ? `<div class="meta-item">
                         <span class="meta-label">模板大小</span>
                         <span class="meta-value">${p.template_bytes} bytes</span>
-                    </div>
+                    </div>` : ''}
                     <div class="meta-item">
                         <span class="meta-label">建立時間</span>
                         <span class="meta-value">${date}</span>
                     </div>
-                    <div class="meta-item">
+                    ${seedHtml}
+                    ${!isPending && p.encrypted_payload ? `<div class="meta-item">
                         <span class="meta-label">加密酬載</span>
-                        <span class="meta-value">${p.encrypted_payload ? '🔒 ' + p.encrypted_payload.length + ' chars' : '—'}</span>
-                    </div>
+                        <span class="meta-value">🔒 ${p.encrypted_payload.length} chars</span>
+                    </div>` : ''}
                 </div>
-                <div class="template-preview">
-                    ${hexPreview}${remaining > 0 ? `<span class="dim">…+${remaining} chars</span>` : ''}
-                </div>
-                ${p.encrypted_payload ? `<div class="template-preview" style="margin-top:8px;color:#c4b5fd;font-size:0.75rem;">
-                    🔒 ${p.encrypted_payload.substring(0, 40)}${p.encrypted_payload.length > 40 ? '<span class="dim">…</span>' : ''}
-                </div>` : ''}
+                ${templateHtml}
             `;
 
             list.appendChild(card);
