@@ -19,9 +19,8 @@ API 概覽:
   DELETE /api/persons/{id}           刪除人員
   POST   /api/persons/{id}/complete  裝置回傳: 填入碼字完成註冊
   GET    /api/templates              CV181X 專用: 只取已完成的碼字
+  GET    /api/pending                CV181X 專用: 只取 pending 照片資訊（輕量）
   POST   /api/persons                CV181X 裝置端: 直接寫入完成的碼字
-  GET    /api/status                 系統狀態
-  GET    /uploads/{filename}         取得上傳的照片
 """
 
 import re
@@ -138,6 +137,13 @@ class StatusResponse(BaseModel):
     pending_count: int
     db_connected: bool
     version: str
+
+
+class PendingResponse(BaseModel):
+    """CV181X 裝置用：只包含 pending 記錄的最小資訊"""
+    id: int
+    name: str
+    photo_path: str
 
 
 # ─── App ───
@@ -271,7 +277,21 @@ async def enroll_person(
     content = await photo.read()
     if len(content) > 10 * 1024 * 1024:  # 10MB limit
         raise HTTPException(status_code=413, detail="照片檔案過大 (上限 10MB)")
-    photo_path.write_bytes(content)
+        
+    try:
+        from PIL import Image
+        import io
+        img = Image.open(io.BytesIO(content))
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+        img.thumbnail((1920, 1080), Image.Resampling.LANCZOS)
+        
+        # 強制存成 jpg
+        photo_filename = f"{photo_id}.jpg"
+        photo_path = UPLOAD_DIR / photo_filename
+        img.save(photo_path, format="JPEG", quality=85)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"圖片處理失敗: {str(e)}")
 
     # 建立 pending 記錄
     async with aiosqlite.connect(_db_path) as db:
@@ -356,6 +376,21 @@ async def list_templates():
         ) as cursor:
             rows = await cursor.fetchall()
     return [row_to_template(r) for r in rows]
+
+
+@app.get("/api/pending", response_model=list[PendingResponse])
+async def list_pending():
+    """CV181X 專用: 只取 pending 記錄的 {id, name, photo_path}（輕量端點）"""
+    async with aiosqlite.connect(_db_path) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT id, name, photo_path FROM persons WHERE status = 'pending' AND photo_path != '' ORDER BY id"
+        ) as cursor:
+            rows = await cursor.fetchall()
+    return [
+        PendingResponse(id=r["id"], name=r["name"], photo_path=r["photo_path"])
+        for r in rows
+    ]
 
 
 @app.post("/api/persons", response_model=PersonResponse, status_code=201)
