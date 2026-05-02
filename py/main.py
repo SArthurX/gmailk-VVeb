@@ -51,8 +51,7 @@ class EnrollResponse(BaseModel):
     name: str
     description: str
     photo_path: str
-    seed_start: str
-    seed_end: str
+    valid_date: str
     status: str
     created_at: str | None
 
@@ -112,8 +111,7 @@ class PersonResponse(BaseModel):
     name: str
     description: str
     photo_path: str
-    seed_start: str
-    seed_end: str
+    valid_date: str
     status: str
     biohash_template: str
     encrypted_payload: str
@@ -140,10 +138,11 @@ class StatusResponse(BaseModel):
 
 
 class PendingResponse(BaseModel):
-    """CV181X 裝置用：只包含 pending 記錄的最小資訊"""
+    """CV181X 裝置用：只包含 pending 記錄的最小資訊 + 有效日期"""
     id: int
     name: str
     photo_path: str
+    valid_date: str
 
 
 # ─── App ───
@@ -166,8 +165,7 @@ async def lifespan(app: FastAPI):
                 name              TEXT NOT NULL,
                 description       TEXT DEFAULT '',
                 photo_path        TEXT DEFAULT '',
-                seed_start        TEXT DEFAULT '',
-                seed_end          TEXT DEFAULT '',
+                valid_date        TEXT DEFAULT '',
                 status            TEXT DEFAULT 'pending',
                 biohash_template  TEXT DEFAULT '',
                 encrypted_payload TEXT DEFAULT '',
@@ -197,8 +195,7 @@ def row_to_person(row: aiosqlite.Row) -> PersonResponse:
         name=row["name"],
         description=row["description"] or "",
         photo_path=row["photo_path"] or "",
-        seed_start=row["seed_start"] or "",
-        seed_end=row["seed_end"] or "",
+        valid_date=row["valid_date"] or "",
         status=row["status"] or "pending",
         biohash_template=tmpl,
         encrypted_payload=row["encrypted_payload"] or "",
@@ -246,13 +243,12 @@ async def serve_upload(filename: str):
 async def enroll_person(
     name: str = Form(...),
     description: str = Form(""),
-    seed_start: str = Form(...),
-    seed_end: str = Form(...),
+    valid_date: str = Form(...),
     photo: UploadFile = File(...),
 ):
     """
     Web UI 註冊流程:
-    1. 使用者上傳照片 + 個人資訊 + 日期種子範圍
+    1. 使用者上傳照片 + 個人資訊 + 有效日期
     2. 照片存於 RPi，建立 pending 記錄
     3. 等待 CV181X 裝置連線後處理 (Phase 2)
     4. 裝置處理完成後透過 POST /api/persons/{id}/complete 回傳碼字
@@ -261,10 +257,34 @@ async def enroll_person(
     if not name:
         raise HTTPException(status_code=422, detail="名稱不能為空")
 
-    # 驗證日期格式
-    for label, val in [("起始日期", seed_start), ("結束日期", seed_end)]:
-        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", val):
-            raise HTTPException(status_code=422, detail=f"{label}格式錯誤，應為 YYYY-MM-DD")
+    # 驗證 valid_date 格式：12 位數字 (YYYYMMDDHHmm)
+    if not re.fullmatch(r"\d{12}", valid_date):
+        raise HTTPException(status_code=422, detail="有效日期格式錯誤，應為 12 位數字 (YYYYMMDDHHmm)")
+    
+    # 驗證層級一致性
+    year = int(valid_date[:4])
+    month = int(valid_date[4:6])
+    day = int(valid_date[6:8])
+    hour = int(valid_date[8:10])
+    minute = int(valid_date[10:12])
+    
+    if year < 2020:
+        raise HTTPException(status_code=422, detail="年份不能小於 2020")
+    if month > 12:
+        raise HTTPException(status_code=422, detail="月份無效")
+    if day > 31:
+        raise HTTPException(status_code=422, detail="日期無效")
+    if hour > 23:
+        raise HTTPException(status_code=422, detail="小時無效")
+    if minute > 59:
+        raise HTTPException(status_code=422, detail="分鐘無效")
+    # 層級一致性：月=0 則日/時/分必須為 0
+    if month == 0 and (day != 0 or hour != 0 or minute != 0):
+        raise HTTPException(status_code=422, detail="月份未設定時，日/時/分也必須未設定")
+    if day == 0 and (hour != 0 or minute != 0):
+        raise HTTPException(status_code=422, detail="日期未設定時，時/分也必須未設定")
+    if hour == 0 and minute != 0:
+        raise HTTPException(status_code=422, detail="小時未設定時，分鐘也必須未設定")
 
     # 儲存照片
     photo_id = str(uuid.uuid4())
@@ -298,24 +318,23 @@ async def enroll_person(
         db.row_factory = aiosqlite.Row
         async with db.execute(
             """
-            INSERT INTO persons (name, description, photo_path, seed_start, seed_end, status)
-            VALUES (?, ?, ?, ?, ?, 'pending')
-            RETURNING id, name, description, photo_path, seed_start, seed_end, status, created_at
+            INSERT INTO persons (name, description, photo_path, valid_date, status)
+            VALUES (?, ?, ?, ?, 'pending')
+            RETURNING id, name, description, photo_path, valid_date, status, created_at
             """,
-            (name, description.strip(), photo_filename, seed_start, seed_end),
+            (name, description.strip(), photo_filename, valid_date),
         ) as cursor:
             row = await cursor.fetchone()
         await db.commit()
 
-    print(f"📸 註冊請求: [{row['id']}] {name} (種子 {seed_start}~{seed_end}, 待裝置處理)")
+    print(f"📸 註冊請求: [{row['id']}] {name} (有效日期 {valid_date}, 待裝置處理)")
 
     return EnrollResponse(
         id=row["id"],
         name=row["name"],
         description=row["description"] or "",
         photo_path=row["photo_path"],
-        seed_start=row["seed_start"],
-        seed_end=row["seed_end"],
+        valid_date=row["valid_date"],
         status=row["status"],
         created_at=row["created_at"],
     )
@@ -380,15 +399,18 @@ async def list_templates():
 
 @app.get("/api/pending", response_model=list[PendingResponse])
 async def list_pending():
-    """CV181X 專用: 只取 pending 記錄的 {id, name, photo_path}（輕量端點）"""
+    """CV181X 專用: 只取 pending 記錄的 {id, name, photo_path, valid_date}"""
     async with aiosqlite.connect(_db_path) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
-            "SELECT id, name, photo_path FROM persons WHERE status = 'pending' AND photo_path != '' ORDER BY id"
+            "SELECT id, name, photo_path, valid_date FROM persons WHERE status = 'pending' AND photo_path != '' ORDER BY id"
         ) as cursor:
             rows = await cursor.fetchall()
     return [
-        PendingResponse(id=r["id"], name=r["name"], photo_path=r["photo_path"])
+        PendingResponse(
+            id=r["id"], name=r["name"], photo_path=r["photo_path"],
+            valid_date=r["valid_date"] or ""
+        )
         for r in rows
     ]
 

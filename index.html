@@ -217,7 +217,7 @@
             margin-bottom: 4px;
         }
 
-        input[type="text"], input[type="date"], textarea {
+        input[type="text"], textarea, select {
             width: 100%;
             background: rgba(6, 10, 18, 0.8);
             border: 1px solid var(--panel-border);
@@ -231,11 +231,18 @@
             resize: none;
         }
 
-        input[type="date"] {
+        select {
             color-scheme: dark;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236d7a8d'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 30px;
         }
 
-        input:focus, textarea:focus {
+        input:focus, textarea:focus, select:focus {
             border-color: var(--primary);
         }
 
@@ -306,19 +313,19 @@
             font-weight: 500;
         }
 
-        /* ── Date Range ── */
-        .date-range {
+        /* ── Valid Date Selectors ── */
+        .date-selector {
             display: flex;
-            gap: 12px;
+            gap: 8px;
             align-items: flex-end;
+            flex-wrap: wrap;
         }
 
-        .date-range > div { flex: 1; }
+        .date-selector > div { flex: 1; min-width: 70px; }
 
-        .date-range .separator {
-            padding-bottom: 14px;
-            color: var(--text-muted);
-            font-weight: 500;
+        .date-selector label {
+            font-size: 0.72rem !important;
+            margin-bottom: 2px !important;
         }
 
         /* ── Buttons ── */
@@ -831,18 +838,37 @@
                     </div>
                 </div>
 
-                <!-- Date Seed Range -->
+                <!-- Valid Date Selector -->
                 <div>
-                    <label>碼字有效期間 (日期種子範圍)</label>
-                    <div class="date-range">
+                    <label>碼字有效期間 (萬用零位：不設定 = 整個範圍有效)</label>
+                    <div class="date-selector">
                         <div>
-                            <label for="seedStart" style="font-size:0.72rem;">起始日</label>
-                            <input type="date" id="seedStart">
+                            <label for="vdYear">年 *</label>
+                            <select id="vdYear"></select>
                         </div>
-                        <div class="separator">～</div>
                         <div>
-                            <label for="seedEnd" style="font-size:0.72rem;">結束日</label>
-                            <input type="date" id="seedEnd">
+                            <label for="vdMonth">月</label>
+                            <select id="vdMonth">
+                                <option value="0">不設定</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="vdDay">日</label>
+                            <select id="vdDay">
+                                <option value="0">不設定</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="vdHour">時</label>
+                            <select id="vdHour">
+                                <option value="-1">不設定</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="vdMinute">分</label>
+                            <select id="vdMinute">
+                                <option value="-1">不設定</option>
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -875,7 +901,7 @@
             <!-- Flow Hint -->
             <div class="flow-hint">
                 <strong>完整流程：</strong>
-                <div class="flow-step"><span class="step-num">1</span> 上傳照片 + 填寫資訊 + 選擇有效期間</div>
+                <div class="flow-step"><span class="step-num">1</span> 上傳照片 + 填寫資訊 + 選擇有效期間（可設為整年/整月/當日/特定時分）</div>
                 <div class="flow-step"><span class="step-num">2</span> RPi 儲存照片，等待 CV181X 裝置連線</div>
                 <div class="flow-step"><span class="step-num">3</span> 裝置執行 ArcFace + BioHash + Fuzzy Commitment → 產生碼字</div>
                 <div class="flow-step"><span class="step-num">4</span> 碼字回傳 RPi，你可以複製分享給他人</div>
@@ -907,7 +933,7 @@
     fetchStatus();
     fetchPersons();
     setInterval(fetchStatus, 15000);
-    setDefaultDates();
+    initValidDateSelectors();
     setupPhotoDrop();
 
     // ── Tab Navigation ──
@@ -922,14 +948,141 @@
         if (tab === 'manage') fetchPersons();
     }
 
-    // ── Date Defaults ──
-    function setDefaultDates() {
-        const today = new Date();
-        const fmt = d => d.toISOString().split('T')[0];
-        document.getElementById('seedStart').value = fmt(today);
-        const end = new Date(today);
-        end.setMonth(end.getMonth() + 1);
-        document.getElementById('seedEnd').value = fmt(end);
+    // ── Valid Date Setup ──
+    function initValidDateSelectors() {
+        const now = new Date();
+        const yearSel = document.getElementById('vdYear');
+        const monthSel = document.getElementById('vdMonth');
+        const daySel = document.getElementById('vdDay');
+        const hourSel = document.getElementById('vdHour');
+        const minuteSel = document.getElementById('vdMinute');
+
+        // 年: 當年 ~ +5 年
+        for (let y = now.getFullYear(); y <= now.getFullYear() + 5; y++) {
+            const opt = document.createElement('option');
+            opt.value = y;
+            opt.textContent = y;
+            yearSel.appendChild(opt);
+        }
+        yearSel.value = now.getFullYear();
+
+        // 月: 1~12 + 不設定
+        for (let m = 1; m <= 12; m++) {
+            const opt = document.createElement('option');
+            opt.value = m;
+            opt.textContent = m + ' 月';
+            monthSel.appendChild(opt);
+        }
+        monthSel.value = now.getMonth() + 1;
+
+        // 日: 動態更新
+        function updateDays() {
+            const month = parseInt(monthSel.value);
+            const year = parseInt(yearSel.value);
+            const prevDay = daySel.value;
+            daySel.innerHTML = '<option value="0">不設定</option>';
+            if (month === 0) {
+                daySel.value = '0';
+                daySel.disabled = true;
+                hourSel.value = '-1';
+                hourSel.disabled = true;
+                minuteSel.value = '-1';
+                minuteSel.disabled = true;
+                return;
+            }
+            daySel.disabled = false;
+            const maxDay = new Date(year, month, 0).getDate();
+            for (let d = 1; d <= maxDay; d++) {
+                const opt = document.createElement('option');
+                opt.value = d;
+                opt.textContent = d + ' 日';
+                daySel.appendChild(opt);
+            }
+            // 試圖保留之前的選擇
+            if (parseInt(prevDay) > 0 && parseInt(prevDay) <= maxDay) daySel.value = prevDay;
+            else daySel.value = now.getDate();
+            updateHours();
+        }
+
+        function updateHours() {
+            const day = parseInt(daySel.value);
+            hourSel.innerHTML = '<option value="-1">不設定</option>';
+            if (day === 0) {
+                hourSel.value = '-1';
+                hourSel.disabled = true;
+                minuteSel.value = '-1';
+                minuteSel.disabled = true;
+                return;
+            }
+            hourSel.disabled = false;
+            for (let h = 0; h <= 23; h++) {
+                const opt = document.createElement('option');
+                opt.value = h;
+                opt.textContent = String(h).padStart(2, '0') + ' 時';
+                hourSel.appendChild(opt);
+            }
+            hourSel.value = '-1';  // 預設不設定
+            updateMinutes();
+        }
+
+        function updateMinutes() {
+            const hour = parseInt(hourSel.value);
+            minuteSel.innerHTML = '<option value="-1">不設定</option>';
+            if (hour < 0) {
+                minuteSel.value = '-1';
+                minuteSel.disabled = true;
+                return;
+            }
+            minuteSel.disabled = false;
+            for (let m = 0; m <= 59; m++) {
+                const opt = document.createElement('option');
+                opt.value = m;
+                opt.textContent = String(m).padStart(2, '0') + ' 分';
+                minuteSel.appendChild(opt);
+            }
+            minuteSel.value = '-1';  // 預設不設定
+        }
+
+        yearSel.addEventListener('change', updateDays);
+        monthSel.addEventListener('change', updateDays);
+        daySel.addEventListener('change', updateHours);
+        hourSel.addEventListener('change', updateMinutes);
+
+        updateDays();
+        // 預設: 當月當日（整天有效）
+        daySel.value = now.getDate();
+        hourSel.value = '-1';
+        minuteSel.value = '-1';
+    }
+
+    function composeValidDate() {
+        const year = document.getElementById('vdYear').value;
+        const month = parseInt(document.getElementById('vdMonth').value);
+        const day = parseInt(document.getElementById('vdDay').value);
+        const hour = parseInt(document.getElementById('vdHour').value);
+        const minute = parseInt(document.getElementById('vdMinute').value);
+
+        const mm = month > 0 ? String(month).padStart(2, '0') : '00';
+        const dd = day > 0 ? String(day).padStart(2, '0') : '00';
+        const hh = hour >= 0 ? String(hour).padStart(2, '0') : '00';
+        const mi = minute >= 0 ? String(minute).padStart(2, '0') : '00';
+
+        return `${year}${mm}${dd}${hh}${mi}`;
+    }
+
+    function formatValidDate(vd) {
+        if (!vd || vd.length !== 12) return vd || '—';
+        const y = vd.substring(0, 4);
+        const m = vd.substring(4, 6);
+        const d = vd.substring(6, 8);
+        const h = vd.substring(8, 10);
+        const mi = vd.substring(10, 12);
+        
+        if (m === '00') return `${y} (整年)`;
+        if (d === '00') return `${y}-${m} (整月)`;
+        if (h === '00' && mi === '00') return `${y}-${m}-${d} (整天)`;
+        if (mi === '00') return `${y}-${m}-${d} ${h}時 (整時)`;
+        return `${y}-${m}-${d} ${h}:${mi}`;
     }
 
     // ── Photo Drop Zone ──
@@ -982,14 +1135,11 @@
     async function submitEnroll() {
         const name = document.getElementById('enrollName').value.trim();
         const desc = document.getElementById('enrollDesc').value.trim();
-        const seedStart = document.getElementById('seedStart').value;
-        const seedEnd = document.getElementById('seedEnd').value;
+        const validDate = composeValidDate();
         const btn = document.getElementById('enrollBtn');
 
         if (!name) return toast('請輸入名稱', 'error');
         if (!selectedPhoto) return toast('請上傳照片', 'error');
-        if (!seedStart || !seedEnd) return toast('請選擇日期範圍', 'error');
-        if (seedStart > seedEnd) return toast('起始日期不能晚於結束日期', 'error');
 
         btn.disabled = true;
         btn.innerHTML = '<div class="loading" style="width:14px;height:14px;border-width:2px;"></div> 上傳中...';
@@ -998,8 +1148,7 @@
             const formData = new FormData();
             formData.append('name', name);
             formData.append('description', desc);
-            formData.append('seed_start', seedStart);
-            formData.append('seed_end', seedEnd);
+            formData.append('valid_date', validDate);
             formData.append('photo', selectedPhoto);
 
             const res = await fetch('/api/enroll', {
@@ -1026,7 +1175,7 @@
             document.getElementById('photoPlaceholder').style.display = '';
             document.getElementById('photoPreviewArea').style.display = 'none';
             document.getElementById('photoInput').value = '';
-            setDefaultDates();
+            initValidDateSelectors();
 
             toast(`註冊請求已建立: ${name}`, 'success');
             fetchStatus();
@@ -1196,10 +1345,10 @@
                     </div>`;
             }
 
-            const seedHtml = (p.seed_start && p.seed_end)
+            const seedHtml = p.valid_date
                 ? `<div class="meta-item">
                         <span class="meta-label">有效期間</span>
-                        <span class="meta-value">${p.seed_start} ~ ${p.seed_end}</span>
+                        <span class="meta-value">${formatValidDate(p.valid_date)}</span>
                    </div>`
                 : '';
 
