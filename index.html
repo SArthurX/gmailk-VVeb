@@ -798,6 +798,9 @@
         <button class="tab-btn active" data-tab="enroll" onclick="switchTab('enroll')">
             📸 註冊碼字
         </button>
+        <button class="tab-btn" data-tab="import" onclick="switchTab('import')">
+            📋 碼字匯入
+        </button>
         <button class="tab-btn" data-tab="manage" onclick="switchTab('manage')">
             👥 人員管理
             <span class="tab-badge" id="manageBadge" style="display:none;"></span>
@@ -910,7 +913,60 @@
         </section>
     </div>
 
-    <!-- ═══ Tab 2: Management ═══ -->
+    <!-- ═══ Tab 2: Import ═══ -->
+    <div class="tab-content" id="tab-import">
+        <section class="panel">
+            <h3>📋 匯入碼字</h3>
+            <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:16px;">
+                直接貼上他人分享的碼字（hex 字串），匯入後攝影機辨識到該人臉即可顯示其資訊。
+            </p>
+            <div class="form-grid">
+                <div class="form-row">
+                    <div style="flex:1;">
+                        <label for="importName">名稱 *</label>
+                        <input type="text" id="importName" placeholder="碼字擁有者的名字" autocomplete="off">
+                    </div>
+                    <div style="flex:1;">
+                        <label for="importDesc">描述（選填）</label>
+                        <input type="text" id="importDesc" placeholder="例如: 訪客、VIP" autocomplete="off">
+                    </div>
+                </div>
+                <div>
+                    <label for="importTemplate">碼字 (hex) *</label>
+                    <textarea id="importTemplate" rows="4" placeholder="貼上碼字 hex 字串…&#10;例如: 020e00000001000200030004..." style="font-family:var(--font-code);font-size:0.82rem;"></textarea>
+                </div>
+
+                <button class="btn-primary" id="importBtn" onclick="submitImport()" style="margin-top:4px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+                    匯入碼字
+                </button>
+            </div>
+
+            <!-- Import Result -->
+            <div class="result-panel" id="importResult">
+                <h4>✅ 碼字匯入成功</h4>
+                <div class="meta-grid">
+                    <div class="meta-item">
+                        <span class="meta-label">ID</span>
+                        <span class="meta-value" id="importResultId">—</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">狀態</span>
+                        <span class="meta-value"><span class="status-badge status-completed">✅ 已完成</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flow-hint">
+                <strong>碼字匯入流程：</strong>
+                <div class="flow-step"><span class="step-num">1</span> 取得對方分享的碼字 hex 字串</div>
+                <div class="flow-step"><span class="step-num">2</span> 填入名稱，貼上碼字</div>
+                <div class="flow-step"><span class="step-num">3</span> 匯入後碼字直接生效 → 攝影機辨識到該人臉即可解密並顯示資訊</div>
+            </div>
+        </section>
+    </div>
+
+    <!-- ═══ Tab 3: Management ═══ -->
     <div class="tab-content" id="tab-manage">
         <div class="list-header">
             <h2>已註冊人員</h2>
@@ -946,6 +1002,67 @@
             c.classList.toggle('active', c.id === `tab-${tab}`);
         });
         if (tab === 'manage') fetchPersons();
+    }
+
+    // ── API: Import Template ──
+    async function submitImport() {
+        const name = document.getElementById('importName').value.trim();
+        const desc = document.getElementById('importDesc').value.trim();
+        const template = document.getElementById('importTemplate').value.trim().replace(/\s+/g, '');
+        const btn = document.getElementById('importBtn');
+
+        if (!name) return toast('請輸入名稱', 'error');
+        if (!template) return toast('請貼上碼字', 'error');
+
+        // 驗證 hex 格式
+        if (template.length % 2 !== 0 || !/^[0-9a-fA-F]+$/.test(template)) {
+            return toast('碼字格式錯誤：必須為偶數長度的 hex 字串', 'error');
+        }
+
+        // 最小合理長度 (version + ecc_len + indices + sketch + commitment ≈ 300+ chars)
+        if (template.length < 100) {
+            return toast('碼字太短，請確認是否完整', 'error');
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<div class="loading" style="width:14px;height:14px;border-width:2px;"></div> 匯入中...';
+
+        try {
+            const res = await fetch('/api/persons', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: name,
+                    biohash_template: template,
+                    description: desc || '',
+                    encrypted_payload: ''  // encrypted_payload 已內嵌在模板中
+                })
+            });
+
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.detail || `HTTP ${res.status}`);
+            }
+
+            const data = await res.json();
+
+            // Show result
+            document.getElementById('importResultId').textContent = data.id;
+            document.getElementById('importResult').classList.add('active');
+
+            // Reset form
+            document.getElementById('importName').value = '';
+            document.getElementById('importDesc').value = '';
+            document.getElementById('importTemplate').value = '';
+
+            toast(`碼字匯入成功: ${name}`, 'success');
+            fetchStatus();
+        } catch (err) {
+            toast(`匯入失敗: ${err.message}`, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg> 匯入碼字';
+        }
     }
 
     // ── Valid Date Setup ──

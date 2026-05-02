@@ -138,11 +138,12 @@ class StatusResponse(BaseModel):
 
 
 class PendingResponse(BaseModel):
-    """CV181X 裝置用：只包含 pending 記錄的最小資訊 + 有效日期"""
+    """CV181X 裝置用：只包含 pending 記錄的最小資訊 + 有效日期 + 描述"""
     id: int
     name: str
     photo_path: str
     valid_date: str
+    description: str
 
 
 # ─── App ───
@@ -403,13 +404,14 @@ async def list_pending():
     async with aiosqlite.connect(_db_path) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
-            "SELECT id, name, photo_path, valid_date FROM persons WHERE status = 'pending' AND photo_path != '' ORDER BY id"
+            "SELECT id, name, photo_path, valid_date, description FROM persons WHERE status = 'pending' AND photo_path != '' ORDER BY id"
         ) as cursor:
             rows = await cursor.fetchall()
     return [
         PendingResponse(
             id=r["id"], name=r["name"], photo_path=r["photo_path"],
-            valid_date=r["valid_date"] or ""
+            valid_date=r["valid_date"] or "",
+            description=r["description"] or ""
         )
         for r in rows
     ]
