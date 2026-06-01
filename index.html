@@ -1406,11 +1406,34 @@
     }
 
     function copyTemplate(hex) {
-        navigator.clipboard.writeText(hex).then(() => {
-            toast('碼字已複製到剪貼簿', 'success');
-        }).catch(() => {
+        // navigator.clipboard requires a secure context (HTTPS). Fall back to
+        // the legacy execCommand approach when it is not available.
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(hex).then(() => {
+                toast('碼字已複製到剪貼簿', 'success');
+            }).catch(() => {
+                fallbackCopy(hex);
+            });
+        } else {
+            fallbackCopy(hex);
+        }
+    }
+
+    function fallbackCopy(text) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        try {
+            const ok = document.execCommand('copy');
+            toast(ok ? '碼字已複製到剪貼簿' : '複製失敗', ok ? 'success' : 'error');
+        } catch {
             toast('複製失敗', 'error');
-        });
+        } finally {
+            document.body.removeChild(ta);
+        }
     }
 
     // ── Render ──
