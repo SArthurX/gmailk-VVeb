@@ -3,12 +3,12 @@ gmailk-V BioHash Template Server
 RPi 端模板儲存 + 管理 Web UI
 
 啟動方式:
-  cd gmailk-VVeb/py
+  cd gmailk-VVeb
   uv run python main.py
 
 環境變數:
   DATABASE_PATH=gvw.db  (預設，相對於 main.py 所在目錄)
-  PORT=3000             (預設)
+  PORT=8787             (預設)
 
 API 概覽:
   GET    /                           Web UI
@@ -40,7 +40,7 @@ import os
 
 DATABASE_PATH = os.getenv("DATABASE_PATH", str(Path(__file__).parent / "gvw.db"))
 PORT = int(os.getenv("PORT", "8787"))
-INDEX_HTML = Path(__file__).parent.parent / "index.html"
+INDEX_HTML = Path(__file__).parent / "index.html"
 UPLOAD_DIR = Path(__file__).parent / "uploads"
 
 # ─── Models ───

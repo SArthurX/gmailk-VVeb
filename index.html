@@ -776,7 +776,7 @@
             <div class="logo-icon">🔐</div>
             <h1>gmailk-V</h1>
         </div>
-        <p class="subtitle">BioHash 碼字註冊 · 驗證管理</p>
+        <p class="subtitle">去中心化人臉特徵交換與辨識系統</p>
     </header>
 
     <!-- Status Bar -->
@@ -796,10 +796,10 @@
     <!-- Tab Navigation -->
     <div class="tab-nav">
         <button class="tab-btn active" data-tab="enroll" onclick="switchTab('enroll')">
-            📸 註冊碼字
+            📸 註冊
         </button>
         <button class="tab-btn" data-tab="import" onclick="switchTab('import')">
-            📋 碼字匯入
+            📋 匯入
         </button>
         <button class="tab-btn" data-tab="manage" onclick="switchTab('manage')">
             👥 人員管理
@@ -836,8 +836,8 @@
                         <input type="text" id="enrollName" placeholder="你的名字" autocomplete="off">
                     </div>
                     <div style="flex:1;">
-                        <label for="enrollDesc">描述 / 附帶資訊</label>
-                        <input type="text" id="enrollDesc" placeholder="例如: 公司、職稱、備註" autocomplete="off">
+                        <label for="enrollDesc">加密訊息</label>
+                        <input type="text" id="enrollDesc" placeholder="例如: 性別、身高、體重、備註" autocomplete="off">
                     </div>
                 </div>
 
@@ -1234,18 +1234,47 @@
             return;
         }
 
-        selectedPhoto = file;
         const drop = document.getElementById('photoDrop');
         drop.classList.add('has-photo');
         document.getElementById('photoPlaceholder').style.display = 'none';
         document.getElementById('photoPreviewArea').style.display = 'block';
-        document.getElementById('photoFileName').textContent = `✅ ${file.name} (${(file.size/1024).toFixed(0)} KB)`;
+        document.getElementById('photoFileName').textContent = `⏳ 處理中...`;
 
-        const reader = new FileReader();
-        reader.onload = e => {
-            document.getElementById('photoPreviewImg').src = e.target.result;
-        };
-        reader.readAsDataURL(file);
+        // 使用 createImageBitmap 修正 iPhone EXIF 方向 (解決拍照旋轉 90° 問題)
+        createImageBitmap(file, { imageOrientation: 'from-image' }).then(bitmap => {
+            const canvas = document.createElement('canvas');
+            canvas.width = bitmap.width;
+            canvas.height = bitmap.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(bitmap, 0, 0);
+            bitmap.close();
+
+            // 更新預覽
+            document.getElementById('photoPreviewImg').src = canvas.toDataURL('image/jpeg', 0.92);
+
+            // 產生修正方向後的 Blob 作為上傳用
+            canvas.toBlob(blob => {
+                if (blob) {
+                    const correctedName = file.name.replace(/\.\w+$/, '') + '_corrected.jpg';
+                    selectedPhoto = new File([blob], correctedName, { type: 'image/jpeg' });
+                } else {
+                    // fallback: 直接使用原始檔案
+                    selectedPhoto = file;
+                }
+                document.getElementById('photoFileName').textContent =
+                    `✅ ${file.name} (${(file.size/1024).toFixed(0)} KB)`;
+            }, 'image/jpeg', 0.92);
+        }).catch(() => {
+            // 瀏覽器不支援 createImageBitmap 或 imageOrientation，fallback 用原始檔案
+            selectedPhoto = file;
+            document.getElementById('photoFileName').textContent =
+                `✅ ${file.name} (${(file.size/1024).toFixed(0)} KB)`;
+            const reader = new FileReader();
+            reader.onload = e => {
+                document.getElementById('photoPreviewImg').src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
     }
 
     // ── API: Enroll ──
